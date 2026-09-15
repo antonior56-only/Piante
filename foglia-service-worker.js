@@ -1,6 +1,6 @@
-const CACHE_NAME = 'foglia-shell-2026-09-15-1';
+const CACHE_NAME = 'foglia-shell-2026-09-15-3';
 // Cambiare CACHE_NAME a ogni pubblicazione per proporre l'aggiornamento agli utenti.
-const APP_SHELL = ['./', './foglia-semplice.html', './manifest.webmanifest', './foglia-icon-192.svg', './foglia-icon-512.svg'];
+const APP_SHELL = ['./', './index.html', './manifest.webmanifest', './foglia-icon-192.svg', './foglia-icon-512.svg'];
 
 self.addEventListener('install', event => {
     event.waitUntil((async () => {
@@ -41,7 +41,7 @@ self.addEventListener('fetch', event => {
             return response;
         } catch (error) {
             if (request.mode === 'navigate') {
-                const fallback = await caches.match('./foglia-semplice.html') || await caches.match('./');
+                const fallback = await caches.match('./index.html') || await caches.match('./');
                 if (fallback) return fallback;
             }
             throw error;
