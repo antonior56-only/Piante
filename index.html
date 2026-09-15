@@ -9,7 +9,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="foglia.">
     <title>foglia. — Il tuo spazio verde</title>
-    <link id="app-manifest-link" rel="manifest">
+    <link id="app-manifest-link" rel="manifest" href="./manifest.webmanifest">
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%231e3f20'/%3E%3Cpath d='M48 14C31 15 18 23 17 38c0 7 5 12 12 12 15-1 20-17 19-36ZM18 49c6-10 13-17 23-24' fill='none' stroke='%23d9f2df' stroke-width='5' stroke-linecap='round'/%3E%3C/svg%3E">
     <!-- Importazione dei font (Lora per i titoli serif e Inter per i testi) -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Lora:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
@@ -665,6 +665,36 @@
             font-size: 1.2rem;
             cursor: pointer;
         }
+        .update-toast {
+            position: fixed;
+            left: 50%;
+            bottom: 24px;
+            transform: translateX(-50%);
+            z-index: 1200;
+            width: min(92vw, 560px);
+            box-sizing: border-box;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 14px;
+            padding: 16px 18px;
+            border-radius: 16px;
+            color: #fff;
+            background: var(--primary-dark);
+            box-shadow: 0 14px 40px rgba(0,0,0,0.28);
+        }
+        .update-toast-actions { display:flex; gap:8px; flex-wrap:wrap; }
+        .update-toast button {
+            border: 1px solid rgba(255,255,255,0.55);
+            border-radius: 999px;
+            padding: 8px 13px;
+            font: inherit;
+            font-weight: 700;
+            cursor: pointer;
+        }
+        .update-toast .update-now { background:#fff; color:var(--primary-dark); }
+        .update-toast .update-later { background:transparent; color:#fff; }
+        .update-toast[hidden] { display:none; }
         .analysis-history {
             margin-top: 18px;
             padding: 16px;
@@ -1085,6 +1115,7 @@
             <div class="card-side" style="width:100%; box-sizing:border-box; margin-bottom:2.5rem;">
                 <h3 style="color:var(--primary-dark);">📲 Installa foglia.</h3>
                 <p style="font-size:0.95rem; line-height:1.6; color:var(--text-muted);">Installa l’app dal browser per aprirla in una finestra dedicata e trovarla tra le altre applicazioni del dispositivo.</p>
+                <p style="font-size:0.9rem; line-height:1.55; color:var(--text-muted);">Se pubblicata tramite HTTPS, l’app può funzionare anche senza connessione dopo il primo caricamento e mostra un avviso quando è pronta una nuova versione.</p>
                 <button id="install-app-btn" type="button" onclick="installFogliaApp()" class="btn-action" style="padding:12px 22px; font-size:0.95rem; width:auto;">Installa l’app</button>
                 <p id="install-app-status" role="status" aria-live="polite" style="font-size:0.9rem; color:var(--text-muted); margin:12px 0 0;">Se il browser non mostra la richiesta automatica, usa il suo menu e seleziona “Installa app” o “Aggiungi alla schermata Home”.</p>
             </div>
@@ -1153,7 +1184,7 @@
 
                 <div class="manual-section" style="margin-bottom: 0;">
                     <h4>7. 📲 Accesso rapido e manutenzione</h4>
-                    <p>Usa <strong>Installa l’app</strong> in Configurazione oppure il comando “Installa app” / “Aggiungi alla schermata Home” del browser. La sezione Backup consente anche di verificare l’archivio fotografico e impostare un promemoria periodico per il backup. Per interrogare Gemini è comunque necessaria una connessione Internet.</p>
+                    <p>Usa <strong>Installa l’app</strong> in Configurazione oppure il comando “Installa app” / “Aggiungi alla schermata Home” del browser. Quando l’app è pubblicata tramite HTTPS, controlla automaticamente la presenza di una nuova versione e propone <strong>Aggiorna ora</strong>; l’operazione non richiede API a pagamento. Perché funzioni, pubblica insieme HTML, manifest, icone e service worker. La sezione Backup consente anche di verificare l’archivio fotografico e impostare un promemoria periodico per il backup. Per interrogare Gemini è comunque necessaria una connessione Internet.</p>
                 </div>
             </div>
         </div>
@@ -1166,6 +1197,13 @@
         <span id="app-toast-text"></span>
         <button type="button" onclick="hideAppMessage()" aria-label="Chiudi">×</button>
     </div>
+    <div id="update-toast" class="update-toast" role="alert" aria-live="assertive" hidden>
+        <span>È disponibile una nuova versione di foglia.</span>
+        <div class="update-toast-actions">
+            <button type="button" class="update-now" onclick="applyAppUpdate()">Aggiorna ora</button>
+            <button type="button" class="update-later" onclick="dismissAppUpdate()">Più tardi</button>
+        </div>
+    </div>
 
     <script>
         const PHOTO_DB_NAME = 'fogliaPhotoDB';
@@ -1176,6 +1214,8 @@
         let pendingDeletionTimer = null;
         let deferredInstallPrompt = null;
         let manifestObjectUrl = '';
+        let waitingServiceWorker = null;
+        let serviceWorkerReloading = false;
         const activeSavedChatRequests = new Map();
         let appToastTimer = null;
 
@@ -1220,6 +1260,7 @@
         }
 
         function configureSingleFileManifest() {
+            if (location.protocol !== 'file:') return;
             try {
                 const startUrl = location.href.split('#')[0];
                 const manifest = {
@@ -1274,6 +1315,66 @@
             }
             alert('Apri il menu del browser e scegli “Installa app” oppure “Aggiungi alla schermata Home”. Se stai aprendo direttamente il file, il comando disponibile dipende dal browser.');
         };
+
+        function showAppUpdate(worker) {
+            if (!worker) return;
+            waitingServiceWorker = worker;
+            const updateToast = document.getElementById('update-toast');
+            if (updateToast) updateToast.hidden = false;
+        }
+
+        window.dismissAppUpdate = function() {
+            const updateToast = document.getElementById('update-toast');
+            if (updateToast) updateToast.hidden = true;
+        };
+
+        window.applyAppUpdate = function() {
+            if (!waitingServiceWorker) {
+                showAppMessage('L’aggiornamento non è più disponibile. Riapri l’app e riprova.', 'error');
+                return;
+            }
+            const button = document.querySelector('#update-toast .update-now');
+            if (button) {
+                button.disabled = true;
+                button.textContent = 'Aggiornamento…';
+            }
+            waitingServiceWorker.postMessage({ type: 'SKIP_WAITING' });
+        };
+
+        async function registerAppServiceWorker() {
+            if (!('serviceWorker' in navigator)) {
+                const status = document.getElementById('install-app-status');
+                if (status && location.protocol !== 'file:') status.textContent = 'Questo browser non supporta gli aggiornamenti automatici della PWA.';
+                return;
+            }
+            if (!['https:', 'http:'].includes(location.protocol)) return;
+            try {
+                const registration = await navigator.serviceWorker.register('./foglia-service-worker.js', { updateViaCache: 'none' });
+                if (registration.waiting && navigator.serviceWorker.controller) showAppUpdate(registration.waiting);
+                registration.addEventListener('updatefound', () => {
+                    const installingWorker = registration.installing;
+                    if (!installingWorker) return;
+                    installingWorker.addEventListener('statechange', () => {
+                        if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                            showAppUpdate(installingWorker);
+                        }
+                    });
+                });
+                registration.update().catch(error => console.warn('Controllo aggiornamenti non riuscito:', error));
+            } catch (error) {
+                console.warn('Service worker non disponibile:', error);
+                const status = document.getElementById('install-app-status');
+                if (status) status.textContent = 'Installazione e aggiornamenti automatici richiedono la pubblicazione dell’app tramite HTTPS.';
+            }
+        }
+
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.addEventListener('controllerchange', () => {
+                if (serviceWorkerReloading) return;
+                serviceWorkerReloading = true;
+                location.reload();
+            });
+        }
 
         configureSingleFileManifest();
 
@@ -1605,6 +1706,7 @@
             try { await migrateLegacyPhotos(); } catch (error) { console.warn(error); }
             renderHomeAndJournalPlants();
             updateStorageStatus();
+            registerAppServiceWorker();
             setTimeout(checkBackupReminder, 400);
         });
 
