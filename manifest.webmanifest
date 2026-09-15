@@ -1,10 +1,10 @@
 {
-  "id": "./foglia-semplice.html",
+  "id": "./",
   "name": "foglia. — Il tuo spazio verde",
   "short_name": "foglia.",
   "description": "Giardino, diario, promemoria e assistente botanico personale.",
   "lang": "it",
-  "start_url": "./foglia-semplice.html",
+  "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
   "background_color": "#f9f8f4",
