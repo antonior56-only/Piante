@@ -371,6 +371,14 @@
             position: relative;
             width: 320px;
         }
+        .garden-filter-bar {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            flex-wrap: wrap;
+            margin: 0 0 22px;
+        }
+        .garden-filter-bar select { width: auto; min-width: 220px; margin: 0; }
 
         .search-box {
             background-color: var(--card-bg);
@@ -561,6 +569,22 @@
             border: 1px solid var(--border-color);
             margin-right: 8%;
         }
+        .chat-message-tools {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-top: 9px;
+        }
+        .chat-message-tools button {
+            border: 1px solid var(--border-color);
+            background: #f7fbf8;
+            color: var(--primary-dark);
+            padding: 5px 9px;
+            border-radius: 999px;
+            font: inherit;
+            font-size: 0.78rem;
+            cursor: pointer;
+        }
         .saved-chat-actions {
             display: flex;
             gap: 10px;
@@ -617,6 +641,46 @@
             font: inherit;
             font-weight: 600;
             cursor: pointer;
+        }
+        .app-toast {
+            position: fixed;
+            right: 22px;
+            top: 22px;
+            z-index: 1100;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            max-width: min(460px, calc(100vw - 44px));
+            padding: 15px 18px;
+            border-radius: 16px;
+            color: #fff;
+            background: var(--primary-dark);
+            box-shadow: 0 12px 35px rgba(0,0,0,0.22);
+        }
+        .app-toast.error { background: #991b1b; }
+        .app-toast button {
+            border: 0;
+            background: transparent;
+            color: #fff;
+            font-size: 1.2rem;
+            cursor: pointer;
+        }
+        .analysis-history {
+            margin-top: 18px;
+            padding: 16px;
+            border-radius: 14px;
+            background: #f8faf8;
+            border: 1px solid var(--border-color);
+        }
+        .analysis-history details + details { margin-top: 10px; }
+        .analysis-history summary { cursor: pointer; font-weight: 600; color: var(--primary-dark); }
+        .maintenance-result {
+            margin-top: 12px;
+            padding: 12px 14px;
+            border-radius: 12px;
+            background: #f7fbf8;
+            color: var(--text-muted);
+            font-size: 0.9rem;
         }
         [hidden] { display: none !important; }
 
@@ -781,6 +845,7 @@
             .saved-chat-actions .btn-action { width: 100%; }
             .plant-edit-grid { grid-template-columns: 1fr; }
             .plant-edit-grid .full-width { grid-column: auto; }
+            .garden-filter-bar select { width: 100%; }
         }
 
         @media (prefers-reduced-motion: reduce) {
@@ -938,9 +1003,21 @@
                     
                     <div class="search-container">
                         <label for="home-search" class="sr-only">Cerca una pianta nel giardino</label>
-                        <input type="text" id="home-search" class="search-box" placeholder="Cerca nel giardino..." oninput="handleSearchInput()" autocomplete="off" aria-expanded="false" aria-controls="search-dropdown">
+                        <input type="text" id="home-search" class="search-box" placeholder="Cerca nome, posizione, luce…" oninput="handleSearchInput()" autocomplete="off" aria-expanded="false" aria-controls="search-dropdown">
                         <div id="search-dropdown" class="search-dropdown" role="listbox" aria-label="Risultati della ricerca"></div>
                     </div>
+                </div>
+                <div class="garden-filter-bar">
+                    <label for="home-filter" style="font-weight:600; color:var(--primary-dark);">Mostra:</label>
+                    <select id="home-filter" onchange="handleGardenFilter()">
+                        <option value="all">Tutte le piante</option>
+                        <option value="problems">Con problemi segnalati</option>
+                        <option value="overdue">Con promemoria scaduti</option>
+                        <option value="watering">Da annaffiare oggi</option>
+                        <option value="with-photo">Con fotografia</option>
+                        <option value="without-photo">Senza fotografia</option>
+                    </select>
+                    <button type="button" onclick="resetGardenFilters()" class="version-btn">Azzera filtri</button>
                 </div>
                 
                 <div id="home-plants-grid" class="plants-grid">
@@ -963,6 +1040,13 @@
                         <p style="color: var(--text-muted); font-size: 1.1rem; margin: 0;">Nessun promemoria attivo al momento. Goditi il relax!</p>
                     </div>
                 </div>
+            </div>
+            <div class="card-side" style="width:100%; box-sizing:border-box; margin-top:20px;">
+                <div style="display:flex; justify-content:space-between; gap:12px; align-items:center; flex-wrap:wrap;">
+                    <h2 style="color:var(--primary-dark); margin:0; font-size:1.35rem;">Storico attività completate</h2>
+                    <button type="button" onclick="clearCompletedReminders()" class="version-btn">Cancella storico</button>
+                </div>
+                <div id="completed-reminders-container" style="margin-top:12px;"></div>
             </div>
         </div>
 
@@ -1020,6 +1104,17 @@
                     </label>
                     <input type="file" id="restore-file-input" accept=".json" onchange="ripristinaBackup(event)">
                 </div>
+                <div style="display:flex; gap:12px; margin-top:15px; flex-wrap:wrap; align-items:center;">
+                    <button type="button" onclick="checkPhotoArchive()" class="btn-action btn-secondary-action" style="padding:12px 22px; font-size:0.95rem; width:auto;">🧹 Verifica archivio foto</button>
+                    <label for="backup-reminder-days" style="font-weight:600;">Ricorda il backup:</label>
+                    <select id="backup-reminder-days" onchange="saveBackupReminderSetting()" style="width:auto; margin:0;">
+                        <option value="0">Mai</option>
+                        <option value="7">Ogni 7 giorni</option>
+                        <option value="14">Ogni 14 giorni</option>
+                        <option value="30" selected>Ogni 30 giorni</option>
+                    </select>
+                </div>
+                <div id="photo-archive-status" class="maintenance-result" role="status" aria-live="polite" hidden></div>
             </div>
 
             <!-- MANUALE D'USO DIVISO PER SEZIONI -->
@@ -1043,17 +1138,22 @@
 
                 <div class="manual-section">
                     <h4>4. 🌱 Il mio giardino & Diario (Versioni Integrale / Ridotta)</h4>
-                    <p>Nel Diario puoi scegliere la versione <strong>Integrale</strong> o <strong>Ridotta</strong> e modificare nome, indicazioni e fotografia. Il comando <strong>Rimuovi foto</strong> cancella soltanto l’immagine senza alterare la scheda. Ogni pianta conserva una chat dedicata e condivisa con il Giardino; puoi anche cancellarne lo storico. Dopo una rimozione hai 10 secondi per annullare.</p>
+                    <p>Nel Diario puoi scegliere la versione <strong>Integrale</strong> o <strong>Ridotta</strong> e modificare tutti i dati della scheda. Il comando <strong>Rimuovi foto</strong> cancella soltanto l’immagine. Con <strong>Nuova analisi foto</strong> puoi aggiornare lo stato sanitario e conservare la cronologia dei confronti. La ricerca comprende anche posizione, luce e diagnosi, e i filtri aiutano a trovare rapidamente le piante da seguire.</p>
                 </div>
 
                 <div class="manual-section">
                     <h4>5. 📅 Da fare (Promemoria)</h4>
-                    <p>Raccoglie tutte le scadenze programmate ordinate cronologicamente con il pulsante di completamento.</p>
+                    <p>Raccoglie le scadenze singole o ricorrenti. Quando completi un’attività, questa passa nello storico; se è ricorrente, l’app prepara automaticamente la data successiva. Questi promemoria sono locali e non generano notifiche di sistema quando l’app è chiusa.</p>
+                </div>
+
+                <div class="manual-section">
+                    <h4>6. 💬 Conversazioni con l’IA</h4>
+                    <p>Ogni pianta conserva una chat condivisa tra Giardino e Diario. Puoi interrompere una richiesta, copiare o rigenerare una risposta, eliminare un singolo scambio oppure cancellare tutta la conversazione.</p>
                 </div>
 
                 <div class="manual-section" style="margin-bottom: 0;">
-                    <h4>6. 📲 Accesso rapido</h4>
-                    <p>Usa <strong>Installa l’app</strong> in Configurazione oppure il comando “Installa app” / “Aggiungi alla schermata Home” del browser. L’app manterrà i dati locali del browser; per interrogare Gemini è comunque necessaria una connessione Internet.</p>
+                    <h4>7. 📲 Accesso rapido e manutenzione</h4>
+                    <p>Usa <strong>Installa l’app</strong> in Configurazione oppure il comando “Installa app” / “Aggiungi alla schermata Home” del browser. La sezione Backup consente anche di verificare l’archivio fotografico e impostare un promemoria periodico per il backup. Per interrogare Gemini è comunque necessaria una connessione Internet.</p>
                 </div>
             </div>
         </div>
@@ -1061,6 +1161,10 @@
     <div id="undo-toast" class="undo-toast" role="status" aria-live="polite" hidden>
         <span id="undo-toast-text">Pianta rimossa.</span>
         <button type="button" onclick="undoDeletePlant()">Annulla</button>
+    </div>
+    <div id="app-toast" class="app-toast" role="status" aria-live="polite" hidden>
+        <span id="app-toast-text"></span>
+        <button type="button" onclick="hideAppMessage()" aria-label="Chiudi">×</button>
     </div>
 
     <script>
@@ -1072,6 +1176,26 @@
         let pendingDeletionTimer = null;
         let deferredInstallPrompt = null;
         let manifestObjectUrl = '';
+        const activeSavedChatRequests = new Map();
+        let appToastTimer = null;
+
+        function showAppMessage(message, type = 'info', duration = 4500) {
+            const toast = document.getElementById('app-toast');
+            const text = document.getElementById('app-toast-text');
+            if (!toast || !text) return;
+            text.textContent = String(message);
+            toast.classList.toggle('error', type === 'error');
+            toast.hidden = false;
+            clearTimeout(appToastTimer);
+            if (duration > 0) appToastTimer = setTimeout(() => { toast.hidden = true; }, duration);
+        }
+
+        window.hideAppMessage = function() {
+            clearTimeout(appToastTimer);
+            document.getElementById('app-toast').hidden = true;
+        };
+
+        window.alert = message => showAppMessage(message, /errore|non è stato|impossibile|mancante|non valida/i.test(String(message)) ? 'error' : 'info');
 
         function createInstallIcon(size) {
             const canvas = document.createElement('canvas');
@@ -1276,6 +1400,54 @@
             }
         }
 
+        window.checkPhotoArchive = async function() {
+            const status = document.getElementById('photo-archive-status');
+            status.hidden = false;
+            status.textContent = 'Verifica in corso…';
+            try {
+                const plants = getSavedPlants();
+                const referencedIds = new Set(plants.map(plant => String(plant.fotoId || '')).filter(Boolean));
+                const storedKeys = (await getAllPhotoKeys()).map(String);
+                const storedSet = new Set(storedKeys);
+                const missing = [...referencedIds].filter(id => !storedSet.has(id));
+                const orphaned = storedKeys.filter(id => !referencedIds.has(id));
+                let removedOrphans = 0;
+                let repairedMissing = 0;
+                if (orphaned.length && confirm(`Sono state trovate ${orphaned.length} fotografie non associate. Vuoi eliminarle per recuperare spazio?`)) {
+                    await Promise.all(orphaned.map(deletePlantPhoto));
+                    removedOrphans = orphaned.length;
+                }
+                if (missing.length && confirm(`Per ${missing.length} schede la fotografia non è più presente nell'archivio. Vuoi rimuovere soltanto i riferimenti non validi dalle schede?`)) {
+                    plants.forEach(plant => {
+                        if (missing.includes(String(plant.fotoId || ''))) {
+                            delete plant.fotoId;
+                            repairedMissing += 1;
+                        }
+                    });
+                    if (!savePlantsList(plants)) throw new Error('Non è stato possibile aggiornare le schede con foto mancanti.');
+                    renderHomeAndJournalPlants(document.getElementById('home-search')?.value.trim() || '');
+                }
+                status.textContent = `Verifica completata: ${orphaned.length} foto non associate (${removedOrphans} eliminate), ${missing.length} riferimenti mancanti (${repairedMissing} corretti).`;
+                updateStorageStatus();
+            } catch (error) {
+                status.textContent = `Verifica non riuscita: ${error.message}`;
+            }
+        };
+
+        window.saveBackupReminderSetting = function() {
+            const days = document.getElementById('backup-reminder-days').value;
+            if (safeStorageSet('backupReminderDays', days)) showAppMessage(days === '0' ? 'Promemoria backup disattivato.' : `Promemoria backup impostato ogni ${days} giorni.`);
+        };
+
+        function checkBackupReminder() {
+            const days = Number(localStorage.getItem('backupReminderDays') ?? '30');
+            if (!days || !getSavedPlants().length) return;
+            const lastBackup = Date.parse(localStorage.getItem('lastBackupAt') || '');
+            if (!Number.isFinite(lastBackup) || Date.now() - lastBackup >= days * 86400000) {
+                showAppMessage('È il momento di scaricare un nuovo backup del giardino.', 'info', 8000);
+            }
+        }
+
         // --- NAVIGAZIONE TAB ---
         function switchTab(tabId, focusPanel = false) {
             document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
@@ -1348,11 +1520,16 @@
 
         async function fetchWithTimeout(url, options = {}, timeoutMs = 45000) {
             const controller = new AbortController();
+            const externalSignal = options.signal;
+            const abortFromExternal = () => controller.abort();
+            if (externalSignal?.aborted) controller.abort();
+            else externalSignal?.addEventListener('abort', abortFromExternal, { once: true });
             const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
             try {
                 return await fetch(url, { ...options, signal: controller.signal });
             } finally {
                 clearTimeout(timeoutId);
+                externalSignal?.removeEventListener('abort', abortFromExternal);
             }
         }
 
@@ -1371,6 +1548,7 @@
                         }
                     });
                 } catch (error) {
+                    if (error.name === 'AbortError' || options.signal?.aborted) throw error;
                     if (attempt === 2) throw error;
                     await new Promise(resolve => setTimeout(resolve, 700 * (2 ** attempt)));
                     continue;
@@ -1408,7 +1586,11 @@
             if (window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true) {
                 document.getElementById('install-app-btn').hidden = true;
                 document.getElementById('install-app-status').textContent = 'foglia. è installata e aperta come applicazione.';
+            } else if (location.protocol === 'file:') {
+                document.getElementById('install-app-btn').textContent = 'Come installare';
+                document.getElementById('install-app-status').textContent = 'Il file è aperto direttamente: la possibilità di installazione dipende dal browser. Usa il suo menu per creare l’app o un collegamento.';
             }
+            document.getElementById('backup-reminder-days').value = localStorage.getItem('backupReminderDays') ?? '30';
             const navButtons = [...document.querySelectorAll('.nav-btn')];
             navButtons.forEach((button, index) => { button.tabIndex = index === 0 ? 0 : -1; });
             document.querySelector('.sidebar-nav')?.addEventListener('keydown', event => {
@@ -1423,6 +1605,7 @@
             try { await migrateLegacyPhotos(); } catch (error) { console.warn(error); }
             renderHomeAndJournalPlants();
             updateStorageStatus();
+            setTimeout(checkBackupReminder, 400);
         });
 
         window.addEventListener('storage', event => {
@@ -1433,6 +1616,7 @@
             }
             if (event.key === 'miePiante') renderHomeAndJournalPlants(document.getElementById('home-search')?.value.trim() || '');
             if (event.key === 'promemoriaPiante') renderReminders();
+            if (event.key === 'storicoPromemoria') renderCompletedReminders();
         });
 
         saveKeyBtn.addEventListener('click', () => {
@@ -1490,6 +1674,13 @@
                         domanda: checkedText(exchange?.domanda, `domanda ${index + 1}`, 2000, true),
                         risposta: checkedText(exchange?.risposta, `risposta ${index + 1}`, 30000, true),
                         data: typeof exchange?.data === 'string' ? exchange.data : ''
+                    })) : [],
+                storiaAnalisi: Array.isArray(plant.storiaAnalisi)
+                    ? plant.storiaAnalisi.slice(-30).map((entry, index) => ({
+                        data: typeof entry?.data === 'string' ? entry.data : '',
+                        diagnosiPrecedente: checkedText(entry?.diagnosiPrecedente || '', `diagnosi precedente ${index + 1}`, 30000),
+                        diagnosiNuova: checkedText(entry?.diagnosiNuova || '', `nuova diagnosi ${index + 1}`, 30000),
+                        confronto: checkedText(entry?.confronto || '', `confronto ${index + 1}`, 30000)
                     })) : []
             };
             const photo = plant.foto ? safeImageSrc(plant.foto) : '';
@@ -1504,10 +1695,11 @@
                     foto: safeImageSrc(plant.foto) || await getPlantPhoto(plant.fotoId)
                 })));
                 const dataBackup = {
-                    versione: 3,
+                    versione: 4,
                     esportatoIl: new Date().toISOString(),
                     miePiante: plantsWithPhotos,
-                    promemoriaPiante: readJsonArray('promemoriaPiante')
+                    promemoriaPiante: readJsonArray('promemoriaPiante'),
+                    storicoPromemoria: readJsonArray('storicoPromemoria')
                 };
 
                 const dataBlob = new Blob([JSON.stringify(dataBackup, null, 2)], { type: 'application/json' });
@@ -1520,6 +1712,8 @@
                 downloadAnchor.click();
                 downloadAnchor.remove();
                 URL.revokeObjectURL(dataUrl);
+                safeStorageSet('lastBackupAt', new Date().toISOString());
+                showAppMessage('Backup creato e scaricato sul dispositivo.');
             } catch (error) {
                 console.error(error);
                 alert('Non è stato possibile creare il backup. Riprova dopo aver riaperto l’app.');
@@ -1538,6 +1732,7 @@
             const stagedPhotoIds = [];
             const oldPlantsRaw = localStorage.getItem('miePiante');
             const oldRemindersRaw = localStorage.getItem('promemoriaPiante');
+            const oldCompletedRaw = localStorage.getItem('storicoPromemoria');
             const oldPhotoIds = getSavedPlants().map(plant => plant.fotoId).filter(Boolean);
             try {
                 const backupData = JSON.parse(await file.text());
@@ -1568,6 +1763,21 @@
                         piantaId: reminder.piantaId != null ? (oldToNewId.get(String(reminder.piantaId)) || null) : null,
                         tipo: checkedText(reminder.tipo || '', 'tipo promemoria', 200, true),
                         data,
+                        ricorrenza: ['weekly', 'monthly', 'yearly'].includes(reminder.ricorrenza) ? reminder.ricorrenza : 'once',
+                        id: createPlantId()
+                    };
+                });
+                const restoredCompleted = (Array.isArray(backupData.storicoPromemoria) ? backupData.storicoPromemoria : []).slice(-1000).map((reminder, index) => {
+                    if (!reminder || typeof reminder !== 'object') throw new Error(`Attività completata ${index + 1} non valida.`);
+                    const data = checkedText(reminder.data || '', 'data attività', 10, true);
+                    if (!/^\d{4}-\d{2}-\d{2}$/.test(data)) throw new Error(`Data non valida nell'attività completata ${index + 1}.`);
+                    return {
+                        pianta: checkedText(reminder.pianta || '', 'pianta attività', 200, true),
+                        piantaId: reminder.piantaId != null ? (oldToNewId.get(String(reminder.piantaId)) || null) : null,
+                        tipo: checkedText(reminder.tipo || '', 'tipo attività', 200, true),
+                        data,
+                        completataIl: typeof reminder.completataIl === 'string' ? reminder.completataIl : '',
+                        ricorrenza: ['weekly', 'monthly', 'yearly'].includes(reminder.ricorrenza) ? reminder.ricorrenza : 'once',
                         id: createPlantId()
                     };
                 });
@@ -1586,9 +1796,11 @@
                 try {
                     localStorage.setItem('miePiante', JSON.stringify(restoredPlants));
                     localStorage.setItem('promemoriaPiante', JSON.stringify(restoredReminders));
+                    localStorage.setItem('storicoPromemoria', JSON.stringify(restoredCompleted));
                 } catch (storageError) {
                     if (oldPlantsRaw == null) localStorage.removeItem('miePiante'); else localStorage.setItem('miePiante', oldPlantsRaw);
                     if (oldRemindersRaw == null) localStorage.removeItem('promemoriaPiante'); else localStorage.setItem('promemoriaPiante', oldRemindersRaw);
+                    if (oldCompletedRaw == null) localStorage.removeItem('storicoPromemoria'); else localStorage.setItem('storicoPromemoria', oldCompletedRaw);
                     throw storageError;
                 }
 
@@ -1884,9 +2096,9 @@
             }
         });
 
-        async function ensureActiveModel(apiKey) {
+        async function ensureActiveModel(apiKey, signal) {
             if (activeModelName) return activeModelName;
-            const modelsResponse = await geminiFetch('models', apiKey);
+            const modelsResponse = await geminiFetch('models', apiKey, { signal });
             if (!modelsResponse.ok) {
                 throw new Error(apiErrorMessage(modelsResponse));
             }
@@ -1899,34 +2111,7 @@
             return activeModelName;
         }
 
-        window.askSavedPlant = async function(index, surface = 'journal') {
-            const plants = getSavedPlants();
-            const plant = plants[index];
-            const apiKey = localStorage.getItem('geminiApiKey');
-            const prefix = `${surface}-saved-chat`;
-            const questionInput = document.getElementById(`${prefix}-question-${index}`);
-            const sendButton = document.getElementById(`${prefix}-btn-${index}`);
-            const chatLoader = document.getElementById(`${prefix}-loader-${index}`);
-            const errorBox = document.getElementById(`${prefix}-error-${index}`);
-            const question = questionInput?.value.trim();
-
-            if (!plant || !questionInput || !sendButton || !chatLoader || !errorBox) return;
-            if (!apiKey) {
-                errorBox.textContent = 'Inserisci prima la chiave Gemini nella sezione Configurazione.';
-                errorBox.style.display = 'block';
-                return;
-            }
-            if (!question) {
-                errorBox.textContent = 'Scrivi una domanda.';
-                errorBox.style.display = 'block';
-                return;
-            }
-
-            sendButton.disabled = true;
-            chatLoader.style.display = 'block';
-            errorBox.style.display = 'none';
-
-            const history = Array.isArray(plant.chatStorico) ? plant.chatStorico.slice(-6) : [];
+        async function generateSavedPlantAnswer(plant, question, history, apiKey, signal) {
             const plantContext = {
                 nome: plant.nome,
                 caratteristiche: plant.caratteristiche,
@@ -1945,19 +2130,64 @@
             ]);
             conversationContents.push({ role: 'user', parts: [{ text: question }] });
             const systemInstruction = `Sei un assistente botanico prudente. Rispondi in italiano in modo chiaro e pratico. Usa questa scheda come contesto senza inventare certezze: ${JSON.stringify(plantContext)}. Se la richiesta riguarda una malattia non osservabile dai dati disponibili, spiega quali verifiche servono. Per prodotti commerciali ricorda di seguire etichetta e norme locali.`;
+            const modelName = await ensureActiveModel(apiKey, signal);
+            const response = await geminiFetch(`models/${modelName}:generateContent`, apiKey, {
+                method: 'POST',
+                signal,
+                body: JSON.stringify({
+                    system_instruction: { parts: [{ text: systemInstruction }] },
+                    contents: conversationContents
+                })
+            });
+            if (!response.ok) throw new Error(apiErrorMessage(response));
+            return extractCandidateText(await response.json());
+        }
+
+        function reopenSavedChat(index, surface) {
+            if (surface !== 'garden') return;
+            const panel = document.getElementById(`garden-saved-chat-panel-${index}`);
+            const toggle = document.getElementById(`garden-saved-chat-toggle-${index}`);
+            if (panel) panel.hidden = false;
+            if (toggle) toggle.setAttribute('aria-expanded', 'true');
+        }
+
+        window.askSavedPlant = async function(index, surface = 'journal') {
+            const plants = getSavedPlants();
+            const plant = plants[index];
+            const apiKey = localStorage.getItem('geminiApiKey');
+            const prefix = `${surface}-saved-chat`;
+            const questionInput = document.getElementById(`${prefix}-question-${index}`);
+            const sendButton = document.getElementById(`${prefix}-btn-${index}`);
+            const stopButton = document.getElementById(`${prefix}-stop-${index}`);
+            const chatLoader = document.getElementById(`${prefix}-loader-${index}`);
+            const errorBox = document.getElementById(`${prefix}-error-${index}`);
+            const question = questionInput?.value.trim();
+
+            if (!plant || !questionInput || !sendButton || !chatLoader || !errorBox) return;
+            if (!apiKey) {
+                errorBox.textContent = 'Inserisci prima la chiave Gemini nella sezione Configurazione.';
+                errorBox.style.display = 'block';
+                return;
+            }
+            if (!question) {
+                errorBox.textContent = 'Scrivi una domanda.';
+                errorBox.style.display = 'block';
+                return;
+            }
+
+            sendButton.disabled = true;
+            if (stopButton) stopButton.hidden = false;
+            chatLoader.style.display = 'block';
+            errorBox.style.display = 'none';
+
+            const history = Array.isArray(plant.chatStorico) ? plant.chatStorico.slice(-6) : [];
+            const requestKey = `${surface}-${index}`;
+            activeSavedChatRequests.get(requestKey)?.abort();
+            const controller = new AbortController();
+            activeSavedChatRequests.set(requestKey, controller);
 
             try {
-                const modelName = await ensureActiveModel(apiKey);
-                const response = await geminiFetch(`models/${modelName}:generateContent`, apiKey, {
-                    method: 'POST',
-                    body: JSON.stringify({
-                        system_instruction: { parts: [{ text: systemInstruction }] },
-                        contents: conversationContents
-                    })
-                });
-                if (!response.ok) throw new Error(apiErrorMessage(response));
-                const data = await response.json();
-                const answer = extractCandidateText(data);
+                const answer = await generateSavedPlantAnswer(plant, question, history, apiKey, controller.signal);
                 plant.chatStorico = [...(plant.chatStorico || []), {
                     domanda: question,
                     risposta: answer.slice(0, 30000),
@@ -1966,20 +2196,18 @@
                 if (!savePlantsList(plants)) return;
                 const activeFilter = document.getElementById('home-search')?.value.trim() || '';
                 renderHomeAndJournalPlants(activeFilter);
-                if (surface === 'garden') {
-                    const panel = document.getElementById(`garden-saved-chat-panel-${index}`);
-                    const toggle = document.getElementById(`garden-saved-chat-toggle-${index}`);
-                    if (panel) panel.hidden = false;
-                    if (toggle) toggle.setAttribute('aria-expanded', 'true');
-                }
+                reopenSavedChat(index, surface);
                 setTimeout(() => document.getElementById(`${prefix}-history-${index}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 80);
             } catch (error) {
-                errorBox.textContent = `Errore: ${error.name === 'AbortError' ? 'tempo di attesa scaduto' : error.message}`;
+                errorBox.textContent = error.name === 'AbortError' ? 'Richiesta interrotta.' : `Errore: ${error.message}`;
                 errorBox.style.display = 'block';
             } finally {
+                if (activeSavedChatRequests.get(requestKey) === controller) activeSavedChatRequests.delete(requestKey);
                 if (document.getElementById(`${prefix}-loader-${index}`)) {
                     document.getElementById(`${prefix}-loader-${index}`).style.display = 'none';
                     document.getElementById(`${prefix}-btn-${index}`).disabled = false;
+                    const currentStopButton = document.getElementById(`${prefix}-stop-${index}`);
+                    if (currentStopButton) currentStopButton.hidden = true;
                 }
             }
         };
@@ -2116,14 +2344,21 @@
             plant.luce = (document.getElementById(`edit-light-${index}`)?.value || '').trim().slice(0, 3000);
             plant.acqua = (document.getElementById(`edit-water-${index}`)?.value || '').trim().slice(0, 3000);
             plant.caratteristiche = (document.getElementById(`edit-chars-${index}`)?.value || '').trim().slice(0, 20000);
+            plant.diagnosi = (document.getElementById(`edit-diagnosis-${index}`)?.value || '').trim().slice(0, 30000);
+            plant.problema = (document.getElementById(`edit-problem-${index}`)?.value || '').trim().slice(0, 20000);
+            plant.curaNaturale = (document.getElementById(`edit-natural-care-${index}`)?.value || '').trim().slice(0, 20000);
+            plant.curaAlternativa = (document.getElementById(`edit-commercial-care-${index}`)?.value || '').trim().slice(0, 20000);
             if (!plant.id) plant.id = createPlantId();
 
+            const oldPhotoId = plant.fotoId;
+            let stagedPhotoId = '';
             const photoFile = document.getElementById(`edit-photo-${index}`)?.files?.[0];
             if (photoFile) {
                 try {
                     const resizedPhoto = await resizeImageFile(photoFile);
-                    plant.fotoId = String(plant.id);
-                    await savePlantPhoto(plant.fotoId, resizedPhoto);
+                    stagedPhotoId = `${plant.id}-edit-${Date.now()}`;
+                    await savePlantPhoto(stagedPhotoId, resizedPhoto);
+                    plant.fotoId = stagedPhotoId;
                     delete plant.foto;
                 } catch (error) {
                     alert(error.message);
@@ -2131,7 +2366,11 @@
                 }
             }
 
-            if (!savePlantsList(plants)) return;
+            if (!savePlantsList(plants)) {
+                if (stagedPhotoId) await deletePlantPhoto(stagedPhotoId);
+                return;
+            }
+            if (stagedPhotoId && oldPhotoId !== stagedPhotoId) await deletePlantPhoto(oldPhotoId);
             if (oldName !== plant.nome) {
                 const reminders = readJsonArray('promemoriaPiante').map(reminder =>
                     reminder.piantaId === plant.id || (reminder.piantaId == null && reminder.pianta === oldName)
@@ -2160,16 +2399,90 @@
             alert('Fotografia rimossa. La scheda e il suo storico non sono stati modificati.');
         };
 
+        function imagePartFromDataUrl(dataUrl) {
+            const match = String(dataUrl || '').match(/^data:(image\/(?:jpeg|png|webp|gif));base64,(.+)$/i);
+            return match ? { inline_data: { mime_type: match[1], data: match[2] } } : null;
+        }
+
+        window.reanalyzeSavedPlant = async function(index, event) {
+            const file = event.target.files?.[0];
+            event.target.value = '';
+            if (!file) return;
+            const plants = getSavedPlants();
+            const plant = plants[index];
+            const apiKey = localStorage.getItem('geminiApiKey');
+            if (!plant) return;
+            if (!apiKey) { showAppMessage('Inserisci prima la chiave Gemini in Configurazione.', 'error'); return; }
+
+            showAppMessage(`Analisi aggiornata di ${plant.nome} in corso…`, 'info', 0);
+            let newPhotoId = '';
+            try {
+                const currentPhoto = await resizeImageFile(file);
+                const previousPhoto = safeImageSrc(plant.foto) || await getPlantPhoto(plant.fotoId);
+                const previousDiagnosis = plant.diagnosi || '';
+                const context = {
+                    nome: plant.nome,
+                    caratteristiche: plant.caratteristiche,
+                    diagnosiPrecedente: previousDiagnosis,
+                    problemaPrecedente: plant.problema,
+                    curePrecedenti: [plant.curaNaturale, plant.curaAlternativa].filter(Boolean)
+                };
+                const prompt = `Sei un esperto botanico agronomo prudente. Rivaluta lo stato attuale della pianta usando la scheda precedente: ${JSON.stringify(context)}. ${previousPhoto ? 'La prima immagine è la fotografia precedente e la seconda è quella attuale: confrontale esplicitamente.' : 'È disponibile soltanto la fotografia attuale.'} Restituisci esclusivamente JSON con le chiavi nome, caratteristiche, problema, diagnosi, curaNaturale, curaAlternativa, luce, acqua, posizione. Nel campo problema descrivi anche miglioramenti, peggioramenti o elementi non confrontabili. Non presentare osservazioni visive come diagnosi certe e ricorda di rispettare etichette e norme locali.`;
+                const parts = [{ text: prompt }];
+                const oldPart = imagePartFromDataUrl(previousPhoto);
+                const newPart = imagePartFromDataUrl(currentPhoto);
+                if (!newPart) throw new Error('La nuova fotografia non è valida.');
+                if (oldPart) parts.push({ text: 'Fotografia precedente:' }, oldPart);
+                parts.push({ text: 'Fotografia attuale:' }, newPart);
+                const result = await generatePlantData(apiKey, parts);
+
+                if (!plant.id) plant.id = createPlantId();
+                newPhotoId = `${plant.id}-analysis-${Date.now()}`;
+                await savePlantPhoto(newPhotoId, currentPhoto);
+                const oldPhotoId = plant.fotoId;
+                plant.fotoId = newPhotoId;
+                delete plant.foto;
+                plant.diagnosi = result.diagnosi || plant.diagnosi || 'Valutazione non conclusiva';
+                plant.problema = result.problema || plant.problema || 'Nessuna osservazione disponibile.';
+                plant.curaNaturale = result.curaNaturale || plant.curaNaturale || '';
+                plant.curaAlternativa = result.curaAlternativa || plant.curaAlternativa || '';
+                plant.storiaAnalisi = [...(Array.isArray(plant.storiaAnalisi) ? plant.storiaAnalisi : []), {
+                    data: new Date().toISOString(),
+                    diagnosiPrecedente: previousDiagnosis,
+                    diagnosiNuova: plant.diagnosi,
+                    confronto: plant.problema
+                }].slice(-30);
+                if (!savePlantsList(plants)) {
+                    await deletePlantPhoto(newPhotoId);
+                    return;
+                }
+                await deletePlantPhoto(oldPhotoId);
+                renderHomeAndJournalPlants(document.getElementById('home-search')?.value.trim() || '');
+                showAppMessage('Nuova analisi completata e aggiunta alla cronologia.');
+            } catch (error) {
+                if (newPhotoId) await deletePlantPhoto(newPhotoId);
+                showAppMessage(`Analisi non riuscita: ${error.name === 'AbortError' ? 'tempo di attesa scaduto' : error.message}`, 'error', 8000);
+            }
+        };
+
         function renderSavedPlantChat(plant, index, surface, collapsed = false) {
             const plantName = escapeHTML(plant.nome || 'questa pianta');
             const chatStorico = Array.isArray(plant.chatStorico) ? plant.chatStorico : [];
+            const firstVisibleExchange = Math.max(0, chatStorico.length - 10);
             const chatStoricoHTML = chatStorico.length
-                ? chatStorico.slice(-10).map(exchange => {
+                ? chatStorico.slice(-10).map((exchange, offset) => {
+                    const exchangeIndex = firstVisibleExchange + offset;
                     const parsedDate = new Date(exchange.data || '');
                     const timestamp = Number.isNaN(parsedDate.getTime()) ? '' : parsedDate.toLocaleString('it-IT', { dateStyle: 'short', timeStyle: 'short' });
                     return `
                     <div class="saved-chat-message user"><strong>Tu:</strong> ${escapeHTML(exchange.domanda || '')}</div>
-                    <div class="saved-chat-message ai"><strong>IA:</strong> ${escapeHTML(exchange.risposta || '')}${timestamp ? `<span class="chat-timestamp">${escapeHTML(timestamp)}</span>` : ''}</div>
+                    <div class="saved-chat-message ai"><strong>IA:</strong> ${escapeHTML(exchange.risposta || '')}${timestamp ? `<span class="chat-timestamp">${escapeHTML(timestamp)}</span>` : ''}
+                        <div class="chat-message-tools">
+                            <button type="button" class="version-btn" onclick="copyChatAnswer(${index}, ${exchangeIndex})">Copia</button>
+                            <button type="button" class="version-btn" onclick="regenerateChatExchange(${index}, ${exchangeIndex}, '${surface}')">Rigenera</button>
+                            <button type="button" class="version-btn" onclick="deleteChatExchange(${index}, ${exchangeIndex}, '${surface}')">Elimina scambio</button>
+                        </div>
+                    </div>
                 `; }).join('')
                 : '<p style="color:var(--text-muted); font-size:0.92rem; margin:0;">Nessuna conversazione per questa pianta.</p>';
             const prefix = `${surface}-saved-chat`;
@@ -2186,11 +2499,88 @@
                         <label for="${prefix}-question-${index}" class="sr-only">Domanda su ${plantName}</label>
                         <textarea id="${prefix}-question-${index}" rows="2" maxlength="1000" placeholder="Es. Le foglie stanno ingiallendo: cosa devo controllare?" onkeydown="if((event.ctrlKey||event.metaKey)&&event.key==='Enter'){event.preventDefault();askSavedPlant(${index}, '${surface}');}"></textarea>
                         <button id="${prefix}-btn-${index}" onclick="askSavedPlant(${index}, '${surface}')" class="btn-action" style="width:auto;">Invia</button>
+                        <button id="${prefix}-stop-${index}" onclick="stopSavedPlantChat(${index}, '${surface}')" class="btn-action btn-secondary-action" style="width:auto;" hidden>Interrompi</button>
                     </div>
                     <div id="${prefix}-loader-${index}" class="loader" style="width:24px; height:24px; border-width:3px; margin:15px auto;"></div>
                     <div id="${prefix}-error-${index}" class="error-message" role="alert"></div>
                 </div>`;
         }
+
+        async function copyTextToClipboard(value) {
+            try {
+                await navigator.clipboard.writeText(value);
+            } catch (error) {
+                const textArea = document.createElement('textarea');
+                textArea.value = value;
+                textArea.style.position = 'fixed';
+                textArea.style.opacity = '0';
+                document.body.appendChild(textArea);
+                textArea.select();
+                const copied = document.execCommand('copy');
+                textArea.remove();
+                if (!copied) throw error;
+            }
+        }
+
+        window.copyChatAnswer = async function(index, exchangeIndex) {
+            const exchange = getSavedPlants()[index]?.chatStorico?.[exchangeIndex];
+            if (!exchange) return;
+            try {
+                await copyTextToClipboard(String(exchange.risposta || ''));
+                showAppMessage('Risposta copiata.');
+            } catch (error) {
+                showAppMessage('Non è stato possibile copiare la risposta.', 'error');
+            }
+        };
+
+        window.stopSavedPlantChat = function(index, surface = 'journal') {
+            activeSavedChatRequests.get(`${surface}-${index}`)?.abort();
+        };
+
+        window.deleteChatExchange = function(index, exchangeIndex, surface = 'journal') {
+            if (!confirm('Eliminare soltanto questo scambio dalla conversazione?')) return;
+            const plants = getSavedPlants();
+            const history = plants[index]?.chatStorico;
+            if (!Array.isArray(history) || !history[exchangeIndex]) return;
+            history.splice(exchangeIndex, 1);
+            if (!savePlantsList(plants)) return;
+            renderHomeAndJournalPlants(document.getElementById('home-search')?.value.trim() || '');
+            reopenSavedChat(index, surface);
+        };
+
+        window.regenerateChatExchange = async function(index, exchangeIndex, surface = 'journal') {
+            const plants = getSavedPlants();
+            const plant = plants[index];
+            const exchange = plant?.chatStorico?.[exchangeIndex];
+            const apiKey = localStorage.getItem('geminiApiKey');
+            if (!plant || !exchange) return;
+            if (!apiKey) { showAppMessage('Inserisci prima la chiave Gemini in Configurazione.', 'error'); return; }
+            const requestKey = `${surface}-${index}`;
+            activeSavedChatRequests.get(requestKey)?.abort();
+            const controller = new AbortController();
+            activeSavedChatRequests.set(requestKey, controller);
+            const stopButton = document.getElementById(`${surface}-saved-chat-stop-${index}`);
+            if (stopButton) stopButton.hidden = false;
+            showAppMessage('Sto rigenerando la risposta…', 'info', 0);
+            try {
+                const precedingHistory = plant.chatStorico.slice(Math.max(0, exchangeIndex - 6), exchangeIndex);
+                const answer = await generateSavedPlantAnswer(plant, String(exchange.domanda || ''), precedingHistory, apiKey, controller.signal);
+                const latestPlants = getSavedPlants();
+                if (!latestPlants[index]?.chatStorico?.[exchangeIndex]) throw new Error('Lo scambio non è più disponibile.');
+                latestPlants[index].chatStorico[exchangeIndex].risposta = answer.slice(0, 30000);
+                latestPlants[index].chatStorico[exchangeIndex].data = new Date().toISOString();
+                if (!savePlantsList(latestPlants)) return;
+                renderHomeAndJournalPlants(document.getElementById('home-search')?.value.trim() || '');
+                reopenSavedChat(index, surface);
+                showAppMessage('Risposta rigenerata.');
+            } catch (error) {
+                showAppMessage(error.name === 'AbortError' ? 'Rigenerazione interrotta.' : `Rigenerazione non riuscita: ${error.message}`, 'error', 8000);
+            } finally {
+                if (activeSavedChatRequests.get(requestKey) === controller) activeSavedChatRequests.delete(requestKey);
+                const currentStopButton = document.getElementById(`${surface}-saved-chat-stop-${index}`);
+                if (currentStopButton) currentStopButton.hidden = true;
+            }
+        };
 
         window.toggleSavedPlantChat = function(index, surface = 'garden') {
             const panel = document.getElementById(`${surface}-saved-chat-panel-${index}`);
@@ -2221,13 +2611,36 @@
 
         function renderHomeAndJournalPlants(filter = '') {
             const plants = getSavedPlants();
-            document.getElementById('plant-count-badge').textContent = plants.length;
+            const filterMode = document.getElementById('home-filter')?.value || 'all';
+            const reminders = readJsonArray('promemoriaPiante');
+            const today = todayLocalISO();
+            const normalizedQuery = filter.toLowerCase();
+            const reminderForPlant = (plant, predicate) => reminders.some(reminder =>
+                (reminder.piantaId && plant.id && reminder.piantaId === plant.id || !reminder.piantaId && reminder.pianta === plant.nome) && predicate(reminder)
+            );
+            const hasReportedProblem = plant => {
+                const diagnosis = String(plant.diagnosi || '').toLowerCase();
+                const problem = String(plant.problema || '').toLowerCase();
+                const benign = !problem || /nessun problema|non risultano problemi|in salute|scheda informativa/.test(`${diagnosis} ${problem}`);
+                return !benign;
+            };
             
             // Render Home Grid (Mini-Card)
             const homeGrid = document.getElementById('home-plants-grid');
             const filtered = plants
                 .map((plant, originalIndex) => ({ plant, originalIndex }))
-                .filter(({ plant }) => plant.nome.toLowerCase().includes(filter.toLowerCase()));
+                .filter(({ plant }) => {
+                    const searchable = [plant.nome, plant.posizione, plant.luce, plant.acqua, plant.diagnosi, plant.problema]
+                        .map(value => String(value || '').toLowerCase()).join(' ');
+                    if (normalizedQuery && !searchable.includes(normalizedQuery)) return false;
+                    if (filterMode === 'problems') return hasReportedProblem(plant);
+                    if (filterMode === 'overdue') return reminderForPlant(plant, reminder => reminder.data < today);
+                    if (filterMode === 'watering') return reminderForPlant(plant, reminder => reminder.tipo === 'Annaffiatura' && reminder.data <= today);
+                    if (filterMode === 'with-photo') return Boolean(safeImageSrc(plant.foto) || plant.fotoId);
+                    if (filterMode === 'without-photo') return !safeImageSrc(plant.foto) && !plant.fotoId;
+                    return true;
+                });
+            document.getElementById('plant-count-badge').textContent = filterMode !== 'all' || normalizedQuery ? `${filtered.length}/${plants.length}` : plants.length;
             
             if(plants.length === 0) {
                 homeGrid.innerHTML = `
@@ -2236,7 +2649,7 @@
                         <p style="color: var(--text-muted); font-size: 1.1rem; margin: 0;">Nessuna pianta salvata nel giardino. Inizia aggiungendo una foto in alto!</p>
                     </div>`;
             } else if(filtered.length === 0) {
-                homeGrid.innerHTML = '<p style="color: var(--text-muted); font-size: 1.05rem; grid-column: 1/-1;">Nessuna pianta corrisponde alla ricerca.</p>';
+                homeGrid.innerHTML = '<p style="color: var(--text-muted); font-size: 1.05rem; grid-column: 1/-1;">Nessuna pianta corrisponde alla ricerca o al filtro selezionato.</p>';
             } else {
                 homeGrid.innerHTML = '';
                 filtered.forEach(({ plant, originalIndex }) => {
@@ -2261,6 +2674,7 @@
                         <div style="display: flex; flex-direction: column; gap: 8px;">
                             <button onclick="vaiAlDiario(${originalIndex})" class="btn-action" style="width: 100%; padding: 10px; font-size: 0.9rem; justify-content: center; background-color: var(--primary-light); color: var(--primary-dark); box-shadow: none;">📖 Leggi nel diario</button>
                             <button id="garden-saved-chat-toggle-${originalIndex}" onclick="toggleSavedPlantChat(${originalIndex}, 'garden')" class="btn-action" aria-expanded="false" aria-controls="garden-saved-chat-panel-${originalIndex}" style="width:100%; padding:10px; font-size:0.9rem; justify-content:center;">💬 Chiedi all'IA</button>
+                            <label class="btn-action btn-secondary-action" style="width:100%; padding:10px; font-size:0.9rem; justify-content:center; box-sizing:border-box; cursor:pointer;">📷 Nuova analisi foto<input type="file" accept="image/jpeg,image/png,image/webp" onchange="reanalyzeSavedPlant(${originalIndex}, event)"></label>
                             <button onclick="editPlantFromGarden(${originalIndex})" class="btn-action btn-secondary-action" style="width:100%; padding:10px; font-size:0.9rem; justify-content:center;">✏️ Modifica scheda</button>
                             ${hasPhoto ? `<button onclick="removePlantPhoto(${originalIndex})" class="btn-action btn-secondary-action" style="width:100%; padding:10px; font-size:0.9rem; justify-content:center; color:#b91c1c; border-color:#fecaca;">🖼️ Rimuovi foto</button>` : ''}
                             <button onclick="deletePlant(${originalIndex})" style="background:none; border:none; color:#b91c1c; cursor:pointer; font-size:0.9rem; padding:5px 0; font-weight: 500; text-decoration: underline;">Rimuovi dal giardino</button>
@@ -2302,6 +2716,21 @@
                     ? `<ul style="margin-top: 10px;">${plant.storiaCure.map(c => `<li>${escapeHTML(c)}</li>`).join('')}</ul>`
                     : '<p style="font-size:0.95rem; color:var(--text-muted); margin-top: 10px;">Nessun appunto registrato.</p>';
 
+                const analysisHistory = Array.isArray(plant.storiaAnalisi) ? plant.storiaAnalisi : [];
+                const analysisHistoryHTML = analysisHistory.length ? `
+                    <div class="analysis-history">
+                        <strong style="color:var(--primary-dark);">📷 Cronologia analisi fotografiche</strong>
+                        ${analysisHistory.slice().reverse().map(item => {
+                            const parsedDate = new Date(item.data || '');
+                            const dateLabel = Number.isNaN(parsedDate.getTime()) ? 'Data non disponibile' : parsedDate.toLocaleString('it-IT', { dateStyle: 'medium', timeStyle: 'short' });
+                            return `<details><summary>${escapeHTML(dateLabel)} · ${escapeHTML(item.diagnosiNuova || 'Analisi aggiornata')}</summary>
+                                <p><strong>Prima:</strong> ${escapeHTML(item.diagnosiPrecedente || 'N/D')}</p>
+                                <p><strong>Dopo:</strong> ${escapeHTML(item.diagnosiNuova || 'N/D')}</p>
+                                <p><strong>Confronto:</strong> ${escapeHTML(item.confronto || 'N/D')}</p>
+                            </details>`;
+                        }).join('')}
+                    </div>` : '';
+
                 // Sezione Dettagli Clinici e Diagnosi visibile SOLO se la modalità è 'integrale'
                 const dettagliIntegraliHTML = currentMode === 'integrale' ? `
                     <div style="margin-top:20px; background:#ffffff; padding:18px; border-radius:16px; border: 1px solid var(--border-color); box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);">
@@ -2340,6 +2769,12 @@
 
                     ${dettagliIntegraliHTML}
 
+                    <div style="margin-top:14px; display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+                        <label class="btn-action btn-secondary-action" style="width:auto; padding:10px 16px; font-size:0.9rem; cursor:pointer;">📷 Nuova analisi e confronto<input type="file" accept="image/jpeg,image/png,image/webp" onchange="reanalyzeSavedPlant(${index}, event)"></label>
+                        <span style="font-size:0.88rem; color:var(--text-muted);">Aggiorna la parte sanitaria e conserva i confronti precedenti.</span>
+                    </div>
+                    ${analysisHistoryHTML}
+
                     <div id="edit-plant-${index}" class="plant-edit-panel" hidden>
                         <strong style="color:var(--primary-dark);">✏️ Modifica la scheda</strong>
                         <div class="plant-edit-grid">
@@ -2348,6 +2783,10 @@
                             <label>Luce<input id="edit-light-${index}" type="text" maxlength="3000" value="${escapeHTML(plant.luce || '')}"></label>
                             <label>Acqua<input id="edit-water-${index}" type="text" maxlength="3000" value="${escapeHTML(plant.acqua || '')}"></label>
                             <label class="full-width">Caratteristiche<textarea id="edit-chars-${index}" rows="3" maxlength="20000">${escapeHTML(plant.caratteristiche || '')}</textarea></label>
+                            <label class="full-width">Diagnosi<textarea id="edit-diagnosis-${index}" rows="2" maxlength="30000">${escapeHTML(plant.diagnosi || '')}</textarea></label>
+                            <label class="full-width">Problema o osservazioni<textarea id="edit-problem-${index}" rows="3" maxlength="20000">${escapeHTML(plant.problema || '')}</textarea></label>
+                            <label class="full-width">Cura naturale<textarea id="edit-natural-care-${index}" rows="3" maxlength="20000">${escapeHTML(plant.curaNaturale || '')}</textarea></label>
+                            <label class="full-width">Cura commerciale<textarea id="edit-commercial-care-${index}" rows="3" maxlength="20000">${escapeHTML(plant.curaAlternativa || '')}</textarea></label>
                             <label class="full-width">Sostituisci fotografia (facoltativo)<input id="edit-photo-${index}" type="file" accept="image/jpeg,image/png,image/webp"></label>
                         </div>
                         <div style="display:flex; gap:10px; flex-wrap:wrap;">
@@ -2378,6 +2817,13 @@
                             </select>
                             <label for="data-prom-${index}" class="sr-only">Data del promemoria per ${plantName}</label>
                             <input type="date" id="data-prom-${index}" min="${todayLocalISO()}" style="margin-bottom:0; flex-grow:1; min-width: 150px;">
+                            <label for="ricorrenza-prom-${index}" class="sr-only">Ricorrenza del promemoria</label>
+                            <select id="ricorrenza-prom-${index}" style="margin-bottom:0; flex-grow:1; min-width:150px;">
+                                <option value="once">Una sola volta</option>
+                                <option value="weekly">Ogni settimana</option>
+                                <option value="monthly">Ogni mese</option>
+                                <option value="yearly">Ogni anno</option>
+                            </select>
                         </div>
                         <button onclick="addPromemoria(${index})" class="btn-action btn-secondary-action" style="margin-top:12px; padding:12px 20px; font-size:0.95rem; width:auto;">Salva nell'agenda</button>
                     </div>
@@ -2388,13 +2834,27 @@
         }
 
         // --- GESTIONE AUTOCOMPLETE E SELEZIONE DALLA LISTA DI RICERCA ---
+        window.handleGardenFilter = function() {
+            renderHomeAndJournalPlants(document.getElementById('home-search')?.value.trim() || '');
+        };
+
+        window.resetGardenFilters = function() {
+            const search = document.getElementById('home-search');
+            const filter = document.getElementById('home-filter');
+            if (search) search.value = '';
+            if (filter) filter.value = 'all';
+            closeSearchDropdown();
+            renderHomeAndJournalPlants('');
+        };
+
         function handleSearchInput() {
             const searchInput = document.getElementById('home-search');
             const query = searchInput.value.toLowerCase().trim();
             const dropdown = document.getElementById('search-dropdown');
             const plants = getSavedPlants();
 
-            const matches = plants.filter(plant => plant.nome.toLowerCase().includes(query));
+            const matches = plants.filter(plant => [plant.nome, plant.posizione, plant.luce, plant.acqua, plant.diagnosi, plant.problema]
+                .map(value => String(value || '').toLowerCase()).join(' ').includes(query));
 
             if (query === '' || matches.length === 0) {
                 dropdown.style.display = 'none';
@@ -2542,22 +3002,45 @@
         window.addPromemoria = function(index) {
             const tipo = document.getElementById(`tipo-prom-${index}`).value;
             const data = document.getElementById(`data-prom-${index}`).value;
+            const ricorrenza = document.getElementById(`ricorrenza-prom-${index}`)?.value || 'once';
             if(!data) { alert('Seleziona una data per il promemoria!'); return; }
             let plants = getSavedPlants();
             if (!plants[index]) { alert('La pianta non è più disponibile.'); return; }
             const today = todayLocalISO();
             if (data < today && !confirm('La data selezionata è già trascorsa. Vuoi salvare comunque il promemoria?')) return;
             let promemoria = readJsonArray('promemoriaPiante');
-            promemoria.push({ pianta: plants[index].nome, piantaId: plants[index].id, tipo: tipo, data: data, id: createPlantId() });
+            promemoria.push({ pianta: plants[index].nome, piantaId: plants[index].id, tipo: tipo, data: data, ricorrenza, id: createPlantId() });
             promemoria.sort((a,b) => String(a.data).localeCompare(String(b.data)));
             if (!safeStorageSet('promemoriaPiante', JSON.stringify(promemoria))) return;
             alert('Aggiunto in Agenda Da Fare!');
             document.getElementById(`data-prom-${index}`).value = '';
         };
 
+        function recurrenceLabel(value) {
+            return ({ weekly: 'ogni settimana', monthly: 'ogni mese', yearly: 'ogni anno' })[value] || '';
+        }
+
+        function nextRecurringDate(dateString, recurrence) {
+            const parts = String(dateString).split('-').map(Number);
+            if (parts.length !== 3 || parts.some(Number.isNaN)) return '';
+            let date = new Date(parts[0], parts[1] - 1, parts[2], 12);
+            if (recurrence === 'weekly') {
+                date.setDate(date.getDate() + 7);
+            } else if (recurrence === 'monthly') {
+                const targetMonth = new Date(parts[0], parts[1], 1, 12);
+                const lastDay = new Date(targetMonth.getFullYear(), targetMonth.getMonth() + 1, 0).getDate();
+                date = new Date(targetMonth.getFullYear(), targetMonth.getMonth(), Math.min(parts[2], lastDay), 12);
+            } else if (recurrence === 'yearly') {
+                const lastDay = new Date(parts[0] + 1, parts[1], 0).getDate();
+                date = new Date(parts[0] + 1, parts[1] - 1, Math.min(parts[2], lastDay), 12);
+            } else return '';
+            return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+        }
+
         function renderReminders() {
             const container = document.getElementById('reminders-container');
             let promemoria = readJsonArray('promemoriaPiante');
+            renderCompletedReminders();
             if(promemoria.length === 0) {
                 container.innerHTML = `
                     <div style="text-align: center;">
@@ -2575,7 +3058,7 @@
                 div.innerHTML = `
                     <div style="flex-grow: 1;">
                         <strong style="color:${isOverdue ? '#b91c1c' : 'var(--primary-dark)'}; font-size: 1.1rem;">${dataFormat}${isOverdue ? ' · Scaduto' : ''}</strong><br>
-                        <span style="font-size:1rem; color: var(--text-muted); margin-top: 5px; display: inline-block;">${escapeHTML(p.tipo)} per <em style="color: var(--accent-green); font-weight: 500;">${escapeHTML(p.pianta)}</em></span>
+                        <span style="font-size:1rem; color: var(--text-muted); margin-top: 5px; display: inline-block;">${escapeHTML(p.tipo)} per <em style="color: var(--accent-green); font-weight: 500;">${escapeHTML(p.pianta)}</em>${recurrenceLabel(p.ricorrenza) ? ` · ${escapeHTML(recurrenceLabel(p.ricorrenza))}` : ''}</span>
                     </div>
                     <button onclick="deletePromemoria(${idx})" class="btn-action btn-secondary-action" style="padding:10px 18px; font-size:0.9rem; width:auto; border-radius: 50px;">Completato ✓</button>
                 `;
@@ -2585,9 +3068,45 @@
 
         window.deletePromemoria = function(idx) {
             let promemoria = readJsonArray('promemoriaPiante');
-            promemoria.splice(idx, 1);
+            const completed = promemoria.splice(idx, 1)[0];
+            if (!completed) return;
+            const completedHistory = readJsonArray('storicoPromemoria');
+            completedHistory.unshift({ ...completed, completataIl: new Date().toISOString() });
+            const nextDate = nextRecurringDate(completed.data, completed.ricorrenza);
+            if (nextDate) {
+                promemoria.push({ ...completed, id: createPlantId(), data: nextDate });
+                promemoria.sort((a, b) => String(a.data).localeCompare(String(b.data)));
+            }
             if (!safeStorageSet('promemoriaPiante', JSON.stringify(promemoria))) return;
+            if (!safeStorageSet('storicoPromemoria', JSON.stringify(completedHistory.slice(0, 1000)))) return;
             renderReminders();
+            showAppMessage(nextDate ? `Attività completata. Prossima scadenza: ${new Date(`${nextDate}T00:00:00`).toLocaleDateString('it-IT')}.` : 'Attività registrata come completata.');
+        };
+
+        function renderCompletedReminders() {
+            const container = document.getElementById('completed-reminders-container');
+            if (!container) return;
+            const history = readJsonArray('storicoPromemoria');
+            if (!history.length) {
+                container.innerHTML = '<p style="color:var(--text-muted); margin:0;">Nessuna attività completata.</p>';
+                return;
+            }
+            container.innerHTML = history.slice(0, 100).map(item => {
+                const completedDate = new Date(item.completataIl || '');
+                const completedLabel = Number.isNaN(completedDate.getTime()) ? '' : completedDate.toLocaleString('it-IT', { dateStyle: 'short', timeStyle: 'short' });
+                return `<div style="padding:12px 0; border-bottom:1px solid var(--border-color);">
+                    <strong>${escapeHTML(item.tipo || 'Attività')}</strong> per ${escapeHTML(item.pianta || 'pianta')}
+                    <span style="display:block; color:var(--text-muted); font-size:0.88rem; margin-top:3px;">Prevista: ${escapeHTML(item.data || 'N/D')}${completedLabel ? ` · Completata: ${escapeHTML(completedLabel)}` : ''}</span>
+                </div>`;
+            }).join('');
+        }
+
+        window.clearCompletedReminders = function() {
+            const history = readJsonArray('storicoPromemoria');
+            if (!history.length || !confirm('Cancellare lo storico delle attività completate?')) return;
+            if (!safeStorageSet('storicoPromemoria', '[]')) return;
+            renderCompletedReminders();
+            showAppMessage('Storico delle attività completate cancellato.');
         };
     </script>
 </body>
